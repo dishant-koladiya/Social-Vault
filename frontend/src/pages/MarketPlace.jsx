@@ -16,7 +16,7 @@ const MarketPlace = () => {
 
 	const [filters, setFilters] = useState({
 		platform: null,
-		maxPrice: 100000,
+		maxPrice: null,
 		minFollowers: 0,
 		niche: null,
 		verified: false,
@@ -110,7 +110,7 @@ const MarketPlace = () => {
 								onClick={() =>
 									setFilters({
 										platform: null,
-										maxPrice: 100000,
+										maxPrice: null,
 										minFollowers: 0,
 										niche: null,
 										verified: false,

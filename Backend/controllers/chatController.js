@@ -1,9 +1,26 @@
 import prisma from "../configs/prisma.js";
 
+const CHAT_INCLUDE = {
+	listing: true,
+	ownerUser: { select: { id: true, name: true, email: true, image: true } },
+	chatUser: { select: { id: true, name: true, email: true, image: true } },
+	messages: { orderBy: { createdAt: "asc" } },
+};
+
+const CHAT_LIST_INCLUDE = {
+	listing: true,
+	ownerUser: { select: { id: true, name: true, email: true, image: true } },
+	chatUser: { select: { id: true, name: true, email: true, image: true } },
+};
+
 export const getChat = async (req, res) => {
 	try {
 		const userId = req.user.id;
-		const { listingId, chatId } = req.body; // ✅ not req.body()
+		const { listingId, chatId } = req.body;
+
+		if (!listingId) {
+			return res.status(400).json({ message: "listingId is required" });
+		}
 
 		const listing = await prisma.listing.findUnique({
 			where: { id: listingId },
@@ -21,47 +38,44 @@ export const getChat = async (req, res) => {
 					id: chatId,
 					OR: [{ chatUserId: userId }, { ownerUserId: userId }],
 				},
-				include: {
-					listing: true,
-					ownerUser: true,
-					chatUser: true,
-					messages: true,
-				},
+				include: CHAT_INCLUDE,
 			});
 		} else {
 			existingChat = await prisma.chat.findFirst({
-				where: { listingId, chatUserId: userId, ownerUserId: listing.ownerId },
-				include: {
-					listing: true,
-					ownerUser: true,
-					chatUser: true,
-					messages: true,
+				where: {
+					listingId,
+					chatUserId: userId,
+					ownerUserId: listing.ownerId,
 				},
+				include: CHAT_INCLUDE,
 			});
 		}
 
 		if (existingChat) {
-			let chatData = existingChat;
-
-			if (existingChat.isLastMessageRead === false) {
+			if (
+				existingChat.isLastMessageRead === false &&
+				existingChat.messages.length > 0
+			) {
 				const lastMessage =
 					existingChat.messages[existingChat.messages.length - 1];
 				const isLastMessageSentByMe = lastMessage?.sender_id === userId;
 
 				if (!isLastMessageSentByMe) {
-					await prisma.chat.update({
+					const updatedChat = await prisma.chat.update({
 						where: { id: existingChat.id },
 						data: { isLastMessageRead: true },
+						include: CHAT_INCLUDE,
 					});
+					return res.json({ chat: updatedChat });
 				}
 			}
 
-			return res.json({ chat: chatData }); // ✅ was return null before
+			return res.json({ chat: existingChat });
 		}
 
 		const newChat = await prisma.chat.upsert({
 			where: {
-				Chat_chatUserId_ownerUserId_listingId_key: {
+				chatUserId_ownerUserId_listingId: {
 					chatUserId: userId,
 					ownerUserId: listing.ownerId,
 					listingId,
@@ -73,18 +87,15 @@ export const getChat = async (req, res) => {
 				chatUserId: userId,
 				ownerUserId: listing.ownerId,
 			},
-			include: {
-				listing: true,
-				ownerUser: true,
-				chatUser: true,
-				messages: true,
-			},
+			include: CHAT_INCLUDE,
 		});
 
 		return res.status(201).json({ chat: newChat });
 	} catch (error) {
-		console.log(error);
-		res.status(500).json({ message: error.code || error.message });
+		console.error("getChat error:", error);
+		res.status(500).json({
+			message: error?.message || "Failed to fetch chat",
+		});
 	}
 };
 
@@ -96,11 +107,7 @@ export const getAllUserChats = async (req, res) => {
 			where: {
 				OR: [{ chatUserId: userId }, { ownerUserId: userId }],
 			},
-			include: {
-				listing: true,
-				ownerUser: true,
-				chatUser: true,
-			},
+			include: CHAT_LIST_INCLUDE,
 			orderBy: {
 				updatedAt: "desc",
 			},
@@ -108,8 +115,8 @@ export const getAllUserChats = async (req, res) => {
 
 		return res.json({ chats });
 	} catch (error) {
-		console.log(error);
-		res.status(500).json({ message: error.code || error.message });
+		console.error("getAllUserChats error:", error);
+		res.status(500).json({ message: "Failed to fetch chats" });
 	}
 };
 
@@ -117,6 +124,14 @@ export const sendChatMessage = async (req, res) => {
 	try {
 		const userId = req.user.id;
 		const { chatId, message } = req.body;
+
+		if (!chatId || !message?.trim()) {
+			return res
+				.status(400)
+				.json({ message: "chatId and message are required" });
+		}
+
+		const trimmedMessage = message.trim();
 
 		const chat = await prisma.chat.findFirst({
 			where: {
@@ -128,41 +143,40 @@ export const sendChatMessage = async (req, res) => {
 				],
 			},
 			include: {
-				listing: true,
+				listing: { select: { status: true } },
 			},
 		});
 
 		if (!chat) {
 			return res.status(404).json({ message: "Chat not found" });
-		} else if (chat.listing.status !== "active") {
+		}
+
+		if (chat.listing.status !== "active") {
 			return res.status(400).json({
-				message: `Listing is ${chat.listing.status}`,
+				message: `Listing is ${chat.listing.status}. Cannot send messages.`,
 			});
 		}
 
-		const newMessage = {
-			message,
-			sender_id: userId,
-			chatId,
-			createdAt: new Date(),
-		};
-
-		await prisma.message.create({
-			data: newMessage,
+		const newMessage = await prisma.message.create({
+			data: {
+				message: trimmedMessage,
+				sender_id: userId,
+				chatId,
+			},
 		});
 
 		await prisma.chat.update({
 			where: { id: chatId },
 			data: {
-				lastMessage: newMessage.message,
+				lastMessage: trimmedMessage,
 				isLastMessageRead: false,
 				lastMessageSenderId: userId,
 			},
 		});
 
-		res.json({ message: "Message Sent", newMessage });
+		res.json({ message: "Message sent", newMessage });
 	} catch (error) {
-		console.log(error);
-		res.status(500).json({ message: error.code || error.message });
+		console.error("sendChatMessage error:", error);
+		res.status(500).json({ message: "Failed to send message" });
 	}
 };

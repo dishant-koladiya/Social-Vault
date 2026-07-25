@@ -6,6 +6,7 @@ import authRouter from "./routes/authRoutes.js";
 import listingRouter from "./routes/listingRoutes.js";
 import chatRouter from "./routes/chatRoutes.js";
 import adminRouter from "./routes/adminRoutes.js";
+import planRouter from "./routes/planRoutes.js";
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/listing", listingRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/plan", planRouter);
 
 const PORT = process.env.PORT || 3000;
 

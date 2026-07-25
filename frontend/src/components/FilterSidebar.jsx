@@ -52,7 +52,7 @@ const FilterSidebar = ({
 
 		setFilters({
 			platform: null,
-			maxPrice: 100000,
+			maxPrice: null,
 			minFollowers: 0,
 			niche: null,
 			verified: false,
@@ -212,7 +212,7 @@ const FilterSidebar = ({
 								<span>{currency}0</span>
 								<span>
 									{currency}
-									{filters.maxPrice.toLocaleString()}
+									{(filters.maxPrice ?? 100000).toLocaleString()}
 								</span>
 							</div>
 						</div>
