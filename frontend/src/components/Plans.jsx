@@ -1,6 +1,5 @@
-import React, { useEffect, useState, useRef } from "react";
-import { CheckIcon, Loader2, X, Smartphone, CreditCard } from "lucide-react";
-import QRCode from "qrcode";
+import React, { useEffect, useState } from "react";
+import { CheckIcon, Loader2, CreditCard } from "lucide-react";
 import toast from "react-hot-toast";
 import { useDispatch, useSelector } from "react-redux";
 import { useAuth } from "../context/AuthContext";
@@ -12,8 +11,7 @@ import {
 	downgradePlan,
 } from "../app/features/planSlice";
 
-const UPI_NUMBER = "7984491528";
-const UPI_NAME = "SocialVault";
+
 
 const plans = [
 	{
@@ -57,9 +55,6 @@ const Plans = () => {
 	const { user } = useAuth();
 	const { plan: currentPlan } = useSelector((state) => state.plan);
 	const [paying, setPaying] = useState(null);
-	const [showUPI, setShowUPI] = useState(null);
-	const [qrDataUrl, setQrDataUrl] = useState("");
-	const qrTimeoutRef = useRef(null);
 
 	useEffect(() => {
 		if (user) {
@@ -67,26 +62,7 @@ const Plans = () => {
 		}
 	}, [user, dispatch]);
 
-	useEffect(() => {
-		return () => {
-			if (qrTimeoutRef.current) clearTimeout(qrTimeoutRef.current);
-		};
-	}, []);
 
-	const generateQR = async (plan) => {
-		const upiLink = `upi://pay?pa=${UPI_NUMBER}@upi&pn=${UPI_NAME}&am=${plan.price}&cu=INR`;
-		try {
-			const url = await QRCode.toDataURL(upiLink, {
-				width: 256,
-				margin: 2,
-				color: { dark: "#1e1b4b", light: "#ffffff" },
-			});
-			setQrDataUrl(url);
-			setShowUPI(plan);
-		} catch {
-			toast.error("Failed to generate QR code");
-		}
-	};
 
 	const handleChoosePlan = async (plan) => {
 		if (!user) {
@@ -150,8 +126,8 @@ const Plans = () => {
 
 			const rzp = new window.Razorpay(options);
 			rzp.open();
-		} catch {
-			toast.error("Failed to initiate payment");
+		} catch (err) {
+			toast.error(err || "Failed to initiate payment");
 			setPaying(null);
 		}
 	};
@@ -223,20 +199,6 @@ const Plans = () => {
 							</div>
 
 							<div className="mt-5 space-y-2">
-								{!isFree && (
-									<button
-										onClick={() => generateQR(plan)}
-										disabled={isDisabled(plan)}
-										className={`w-full py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2 border ${
-											isActive
-												? "border-gray-200 text-gray-400 bg-gray-50 cursor-default"
-												: "border-indigo-200 text-indigo-600 hover:bg-indigo-50 cursor-pointer"
-										}`}
-									>
-										<Smartphone size={14} />
-										Pay via UPI
-									</button>
-								)}
 								<button
 									onClick={() => handleChoosePlan(plan)}
 									disabled={isDisabled(plan)}
@@ -260,55 +222,7 @@ const Plans = () => {
 				})}
 			</div>
 
-			{showUPI && (
-				<div
-					className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
-					onClick={() => setShowUPI(null)}
-				>
-					<div
-						className="bg-white rounded-xl p-6 max-w-xs w-full flex flex-col items-center gap-4 relative"
-						onClick={(e) => e.stopPropagation()}
-					>
-						<button
-							onClick={() => setShowUPI(null)}
-							className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 cursor-pointer"
-						>
-							<X size={18} />
-						</button>
 
-						<h3 className="text-base font-semibold text-gray-800">
-							Pay {showUPI.priceLabel} via UPI
-						</h3>
-
-						{qrDataUrl && (
-							<img
-								src={qrDataUrl}
-								alt="UPI QR Code"
-								className="w-52 h-52 rounded-lg border border-gray-100"
-							/>
-						)}
-
-						<p className="text-xs text-gray-400 text-center">
-							Scan with any UPI app to pay
-						</p>
-
-						<div className="flex items-center gap-3 text-xs text-gray-500">
-							<span>Google Pay</span>
-							<span className="text-gray-300">|</span>
-							<span>PhonePe</span>
-							<span className="text-gray-300">|</span>
-							<span>Paytm</span>
-						</div>
-
-						<button
-							onClick={() => setShowUPI(null)}
-							className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 transition cursor-pointer"
-						>
-							Close
-						</button>
-					</div>
-				</div>
-			)}
 		</div>
 	);
 };

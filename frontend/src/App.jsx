@@ -103,6 +103,9 @@ import Withdrawal from "./pages/Admin/Withdrawal";
 import { useAuth } from "./context/AuthContext";
 import SignIn from "./pages/SignIn";
 import SignUp from "./pages/SignUp";
+import ForgotPassword from "./pages/ForgotPassword";
+import VerifyOtp from "./pages/VerifyOtp";
+import ResetPassword from "./pages/ResetPassword";
 import { useDispatch } from "react-redux";
 import {
 	getAllPublicListing,
@@ -140,6 +143,9 @@ const App = () => {
 				<Route path="/my-orders" element={<MyOrders />} />
 				<Route path="/sign-in" element={<SignIn />} />
 				<Route path="/sign-up" element={<SignUp />} />
+				<Route path="/forgot-password" element={<ForgotPassword />} />
+				<Route path="/verify-otp" element={<VerifyOtp />} />
+				<Route path="/reset-password" element={<ResetPassword />} />
 				<Route path="/loading/:nextUrl" element={<Loading />} />
 
 				{/* Admin Routes */}

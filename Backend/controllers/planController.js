@@ -25,7 +25,7 @@ export const createOrder = async (req, res) => {
 		const order = await razorpay.orders.create({
 			amount,
 			currency: "INR",
-			receipt: `plan_${req.user.id}_${Date.now()}`,
+			receipt: `plan_${Date.now()}`,
 		});
 
 		res.status(200).json({
@@ -79,7 +79,7 @@ export const verifyPayment = async (req, res) => {
 
 		await prisma.user.update({
 			where: { id: req.user.id },
-			plan,
+			data: { plan },
 		});
 
 		res.status(200).json({ message: "Payment verified and plan activated" });
@@ -130,12 +130,12 @@ export const downgradePlan = async (req, res) => {
 				userId: req.user.id,
 				isActive: true,
 			},
-			isActive: false,
+			data: { isActive: false },
 		});
 
 		await prisma.user.update({
 			where: { id: req.user.id },
-			plan: "FREE",
+			data: { plan: "FREE" },
 		});
 
 		res.status(200).json({ message: "Downgraded to Free plan" });
