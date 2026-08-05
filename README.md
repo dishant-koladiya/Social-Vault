@@ -1,4 +1,4 @@
-# Flipearn - Social Profile Marketplace
+# Social Vault- Social Profile Marketplace
 
 A secure online marketplace where people can **buy and sell social media accounts** (Instagram, YouTube, TikTok, Twitter, Facebook, and more).
 
