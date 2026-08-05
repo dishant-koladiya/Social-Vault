@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Search, MessageCircle } from "lucide-react";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { useDispatch } from "react-redux";
@@ -7,6 +7,7 @@ import { setChat } from "../app/features/chatSlice";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 import api from "../configs/axios";
+import { getSocket } from "../configs/socket";
 
 const Messages = () => {
 	const dispatch = useDispatch();
@@ -50,14 +51,52 @@ const Messages = () => {
 		}
 	};
 
+	const upsertChat = (updatedChat) => {
+		setChats((prev) => {
+			const exists = prev.some((c) => c.id === updatedChat.id);
+			const next = exists
+				? prev.map((c) => (c.id === updatedChat.id ? updatedChat : c))
+				: [updatedChat, ...prev];
+			return [...next].sort(
+				(a, b) => new Date(b.updatedAt) - new Date(a.updatedAt),
+			);
+		});
+	};
+
 	useEffect(() => {
-		if (user && isLoaded) {
+		if (!user || !isLoaded) return;
+
+		fetchUserChats();
+
+		const socket = getSocket();
+
+		const handleChatUpdate = ({ chat }) => {
+			if (chat) upsertChat(chat);
+		};
+
+		const handleChatRead = ({ chatId, lastMessageSenderId }) => {
+			setChats((prev) =>
+				prev.map((c) =>
+					c.id === chatId
+						? { ...c, isLastMessageRead: true, lastMessageSenderId }
+						: c,
+				),
+			);
+		};
+
+		const handleConnect = () => {
 			fetchUserChats();
-			const interval = setInterval(() => {
-				fetchUserChats();
-			}, 10 * 1000);
-			return () => clearInterval(interval);
-		}
+		};
+
+		socket.on("chat:update", handleChatUpdate);
+		socket.on("chat:read", handleChatRead);
+		socket.on("connect", handleConnect);
+
+		return () => {
+			socket.off("chat:update", handleChatUpdate);
+			socket.off("chat:read", handleChatRead);
+			socket.off("connect", handleConnect);
+		};
 	}, [user, isLoaded]);
 
 	return (

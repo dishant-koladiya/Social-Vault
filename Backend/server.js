@@ -1,4 +1,5 @@
 import express from "express";
+import http from "http";
 import "dotenv/config";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -7,6 +8,7 @@ import listingRouter from "./routes/listingRoutes.js";
 import chatRouter from "./routes/chatRoutes.js";
 import adminRouter from "./routes/adminRoutes.js";
 import planRouter from "./routes/planRoutes.js";
+import { createSocketServer } from "./configs/socket.js";
 
 const app = express();
 
@@ -27,6 +29,9 @@ app.use("/api/plan", planRouter);
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+createSocketServer(server);
+
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

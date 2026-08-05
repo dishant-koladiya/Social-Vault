@@ -207,6 +207,53 @@ export const verifyOtp = async (req, res) => {
   }
 };
 
+export const updateProfile = async (req, res) => {
+  try {
+    const { name, email, currentPassword } = req.body;
+    const userId = req.user.id;
+
+    const updateData = {};
+
+    if (name !== undefined) {
+      updateData.name = name;
+    }
+
+    if (email !== undefined && email !== req.user.email) {
+      if (!currentPassword) {
+        return res.status(400).json({ message: "Current password is required to change email" });
+      }
+
+      const existingUser = await prisma.user.findUnique({ where: { email } });
+      if (existingUser && existingUser.id !== userId) {
+        return res.status(400).json({ message: "Email is already in use" });
+      }
+
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+
+      updateData.email = email;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ message: "No changes provided" });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: { id: true, email: true, name: true, image: true, createdAt: true },
+    });
+
+    res.json({ message: "Profile updated successfully", user: updatedUser });
+  } catch (error) {
+    console.log("Update profile error:", error);
+    res.status(500).json({ message: error.message || "Failed to update profile" });
+  }
+};
+
 export const resetPassword = async (req, res) => {
   try {
     const { resetToken, newPassword } = req.body;

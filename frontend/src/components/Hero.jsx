@@ -1,7 +1,9 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 const Hero = () => {
 	const [menuOpen, setMenuOpen] = React.useState(false);
+	const navigate = useNavigate();
 
 	const companiesLogo = [
 		{
@@ -241,7 +243,10 @@ const Hero = () => {
 								<path d="m12 5 7 7-7 7"></path>
 							</svg>
 						</a>
-						<button className="flex items-center gap-2 border border-slate-400 hover:bg-indigo-50 transition rounded-full px-7 h-12 text-slate-700">
+						<button
+							onClick={() => navigate("/learn-more")}
+							className="flex items-center gap-2 border border-slate-400 hover:bg-indigo-50 transition rounded-full px-7 h-12 text-slate-700"
+						>
 							<svg
 								xmlns="http://www.w3.org/2000/svg"
 								width="24"
