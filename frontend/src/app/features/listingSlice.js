@@ -14,7 +14,8 @@ export const getAllPublicListing = createAsyncThunk(
 		}
 	},
 );
-// ✅ Get all user listings (receives resolved token string as argument)
+
+// ✅ Get all user listings + balance
 export const getAllUserListing = createAsyncThunk(
 	"listing/getAllUserListing",
 	async () => {
@@ -31,6 +32,20 @@ export const getAllUserListing = createAsyncThunk(
 	},
 );
 
+// ✅ Get user's own withdrawal history
+export const getUserWithdrawals = createAsyncThunk(
+	"listing/getUserWithdrawals",
+	async () => {
+		try {
+			const { data } = await api.get("/api/listing/my-withdrawals");
+			return data;
+		} catch (error) {
+			console.error("Failed to fetch withdrawal history:", error);
+			return { withdrawals: [] };
+		}
+	},
+);
+
 // ✅ Slice
 const listingSlice = createSlice({
 	name: "listing",
@@ -38,6 +53,7 @@ const listingSlice = createSlice({
 		listings: [],
 		userListings: [],
 		balance: { earned: 0, withdrawn: 0, available: 0 },
+		withdrawals: [],
 	},
 	reducers: {
 		setListings: (state, action) => {
@@ -55,6 +71,9 @@ const listingSlice = createSlice({
 				withdrawn: 0,
 				available: 0,
 			};
+		});
+		builder.addCase(getUserWithdrawals.fulfilled, (state, action) => {
+			state.withdrawals = action.payload.withdrawals || [];
 		});
 	},
 });

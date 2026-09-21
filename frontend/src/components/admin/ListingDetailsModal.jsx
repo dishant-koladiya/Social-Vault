@@ -3,7 +3,7 @@ import { useEffect } from "react";
 
 const ListingDetailsModal = ({ listing, onClose }) => {
     
-    const currency = import.meta.env.VITE_CURRENCY || "$";
+    const currency = import.meta.env.VITE_CURRENCY || "₹";
 
     useEffect(() => {
         document.body.style.overflow = "hidden";

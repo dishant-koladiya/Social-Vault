@@ -3,6 +3,7 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	CheckCircle2,
+	
 	UploadCloud,
 	X,
 	Sparkles,

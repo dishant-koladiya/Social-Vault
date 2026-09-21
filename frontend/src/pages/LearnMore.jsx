@@ -1,44 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";
-
-// ─── Simple animated counter ─────────────────────────────────────────────────
-const Counter = ({ target, suffix = "" }) => {
-	const [count, setCount] = useState(0);
-	const ref = useRef(null);
-	const started = useRef(false);
-
-	useEffect(() => {
-		const observer = new IntersectionObserver(
-			([entry]) => {
-				if (entry.isIntersecting && !started.current) {
-					started.current = true;
-					let start = 0;
-					const step = Math.ceil(target / 60);
-					const timer = setInterval(() => {
-						start += step;
-						if (start >= target) {
-							setCount(target);
-							clearInterval(timer);
-						} else {
-							setCount(start);
-						}
-					}, 20);
-				}
-			},
-			{ threshold: 0.4 }
-		);
-		if (ref.current) observer.observe(ref.current);
-		return () => observer.disconnect();
-	}, [target]);
-
-	return (
-		<span ref={ref}>
-			{count.toLocaleString()}
-			{suffix}
-		</span>
-	);
-};
 
 // ─── Flow Step ────────────────────────────────────────────────────────────────
 const FlowStep = ({ step, icon, title, desc, accent }) => (
@@ -62,13 +24,6 @@ const FeatureCard = ({ icon, title, desc }) => (
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const LearnMore = () => {
 	const navigate = useNavigate();
-
-	const stats = [
-		{ value: 10000, suffix: "+", label: "Active Users" },
-		{ value: 5000, suffix: "+", label: "Listings Sold" },
-		{ value: 50, suffix: "+", label: "Platform Types" },
-		{ value: 99, suffix: "%", label: "Satisfaction Rate" },
-	];
 
 	const sellerFlow = [
 		{
@@ -348,44 +303,6 @@ const LearnMore = () => {
 				.lm-btn-outline:hover {
 					background: #f5f3ff;
 					transform: translateY(-2px);
-				}
-
-				/* ── Stats Bar ───────────────────────────── */
-				.lm-stats {
-					background: white;
-					border-top: 1px solid #f0ebff;
-					border-bottom: 1px solid #f0ebff;
-					display: grid;
-					grid-template-columns: repeat(4, 1fr);
-					gap: 0;
-				}
-				.lm-stat {
-					text-align: center;
-					padding: 36px 24px;
-					border-right: 1px solid #f0ebff;
-					transition: background 0.2s;
-				}
-				.lm-stat:last-child { border-right: none; }
-				.lm-stat:hover { background: #faf5ff; }
-				.lm-stat-value {
-					font-size: 2.4rem;
-					font-weight: 800;
-					background: linear-gradient(135deg, #7c3aed, #3b82f6);
-					-webkit-background-clip: text;
-					-webkit-text-fill-color: transparent;
-					background-clip: text;
-				}
-				.lm-stat-label {
-					font-size: 13px;
-					color: #94a3b8;
-					font-weight: 500;
-					margin-top: 4px;
-				}
-				@media (max-width: 640px) {
-					.lm-stats { grid-template-columns: repeat(2, 1fr); }
-					.lm-stat:nth-child(2) { border-right: none; }
-					.lm-stat:nth-child(3) { border-top: 1px solid #f0ebff; }
-					.lm-stat:nth-child(4) { border-top: 1px solid #f0ebff; border-right: none; }
 				}
 
 				/* ── Section ─────────────────────────────── */
@@ -853,18 +770,6 @@ const LearnMore = () => {
 					</button>
 				</div>
 			</section>
-
-			{/* ── Stats ────────────────────────────────────────── */}
-			<div className="lm-stats">
-				{stats.map((s) => (
-					<div className="lm-stat" key={s.label}>
-						<div className="lm-stat-value">
-							<Counter target={s.value} suffix={s.suffix} />
-						</div>
-						<div className="lm-stat-label">{s.label}</div>
-					</div>
-				))}
-			</div>
 
 			{/* ── About ────────────────────────────────────────── */}
 			<div style={{ background: "white" }}>

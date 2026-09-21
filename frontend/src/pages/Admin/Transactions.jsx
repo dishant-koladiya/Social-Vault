@@ -8,7 +8,7 @@ import api from "../../configs/axios";
 import { toast } from "react-hot-toast";
 
 const Transactions = () => {
-	const currency = import.meta.env.VITE_CURRENCY || "$";
+	const currency = import.meta.env.VITE_CURRENCY || "₹";
 	
 	const [transactions, setTransactions] = useState([]);
 	const [loading, setLoading] = useState(true);

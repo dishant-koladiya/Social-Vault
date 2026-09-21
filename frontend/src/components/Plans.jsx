@@ -19,15 +19,15 @@ const plans = [
 		planKey: "FREE",
 		price: 0,
 		priceLabel: "₹0",
-		features: ["5 Listings", "Basic analytics", "Community support"],
+		features: ["1 Listings", "Basic analytics", "Community support"],
 	},
 	{
 		name: "Basic",
 		planKey: "BASIC",
-		price: 299,
-		priceLabel: "₹299",
+		price: 999,
+		priceLabel: "₹999",
 		features: [
-			"25 Listings",
+			"5 Listings",
 			"Advanced analytics",
 			"Priority support",
 			"Featured listing",
@@ -36,10 +36,10 @@ const plans = [
 	{
 		name: "Premium",
 		planKey: "PREMIUM",
-		price: 999,
-		priceLabel: "₹999",
+		price: 4999,
+		priceLabel: "₹4999",
 		features: [
-			"Unlimited Listings",
+			"25 Listings",
 			"Premium analytics",
 			"24/7 support",
 			"Featured listings",

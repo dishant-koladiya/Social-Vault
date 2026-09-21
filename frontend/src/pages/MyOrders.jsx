@@ -7,15 +7,14 @@ import {
 	CheckCircle2,
 	ChevronUp,
 	ChevronDown,
-} from "lucide-react"; // Added missing icons
-import { format } from "date-fns"; // Added date-fns import for format function
+} from "lucide-react";
+import { format } from "date-fns";
 import { platformIcons } from "../assets/assets";
 
-import { Tuple } from "@reduxjs/toolkit";
 import api from "../configs/axios";
 
 const MyOrders = () => {
-	const currency = import.meta.env.VITE_CURRENCY || "$";
+	const currency = import.meta.env.VITE_CURRENCY || "₹";
 	const [orders, setOrders] = useState([]);
 	const [loading, setLoading] = useState(true);
 	const [expandedId, setExpandedId] = useState(null);
@@ -34,10 +33,8 @@ const MyOrders = () => {
 	};
 
 	useEffect(() => {
-		if (user && isLoaded) {
-			fetchOrders();
-		}
-	}, [isLoaded, user]);
+		fetchOrders();
+	}, []);
 
 	const mask = (val, type) => {
 		if (!val && val !== 0) return "-";

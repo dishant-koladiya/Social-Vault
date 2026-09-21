@@ -7,7 +7,7 @@ import api from "../../configs/axios";
 import { toast } from "react-hot-toast";
 
 const Withdrawal = () => {
-	const currency = import.meta.env.VITE_CURRENCY || "$";
+	const currency = import.meta.env.VITE_CURRENCY || "₹";
 	const [requests, setRequests] = useState([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [selectedRequest, setSelectedRequest] = useState(null);

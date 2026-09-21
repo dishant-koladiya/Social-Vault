@@ -3,7 +3,7 @@ import { XIcon, CopyIcon } from "lucide-react";
 import api from "../../configs/axios";
 
 const WithdrawalDetail = ({ data, onClose }) => {
-	const currency = import.meta.env.VITE_CURRENCY || "$";
+	const currency = import.meta.env.VITE_CURRENCY || "₹";
 
 	const copyToClipboard = ({ name, value }) => {
 		navigator.clipboard.writeText(value || "");

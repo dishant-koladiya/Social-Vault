@@ -29,6 +29,7 @@ import {
 import StatCard from "../components/StatCard";
 import CredentialSubmission from "../components/CredentialSubmission";
 import WithdrawalModal from "../components/WithdrawModel";
+import EarningsModal from "../components/EarningsModal";
 
 import toast from "react-hot-toast";
 import api from "../configs/axios";
@@ -48,7 +49,9 @@ const MyListings = () => {
 
 	const [showWithdrawal, setShowWithdrawal] = useState(null);
 
-	const currency = import.meta.env.VITE_CURRENCY || "$";
+	const [showEarnings, setShowEarnings] = useState(false);
+
+	const currency = import.meta.env.VITE_CURRENCY || "₹";
 	const navigate = useNavigate();
 
 	const dispatch = useDispatch();
@@ -117,6 +120,26 @@ const MyListings = () => {
 		try {
 			toast.loading("updating listing status....");
 			const { data } = await api.put(`/api/listing/${listingId}/status`);
+			dispatch(getAllUserListing());
+			dispatch(getAllPublicListing());
+			toast.dismiss();
+			toast.success(data.message);
+		} catch (error) {
+			toast.dismiss();
+			toast.error(error?.response?.data?.message || error.message);
+		}
+	};
+
+	const markAsSold = async (listingId) => {
+		try {
+			const confirm = window.confirm(
+				"Mark this listing as sold? This will move it to your earnings.",
+			);
+			if (!confirm) return;
+			toast.loading("marking as sold....");
+			const { data } = await api.put(`/api/listing/${listingId}/status`, {
+				status: "sold",
+			});
 			dispatch(getAllUserListing());
 			dispatch(getAllPublicListing());
 			toast.dismiss();
@@ -226,9 +249,10 @@ const MyListings = () => {
 					{ label: "Available", value: balance.available, icon: Coins },
 				].map((item, index) => (
 					<div
-						onClick={() =>
-							item.label === "Available" && setShowWithdrawal(true)
-						}
+						onClick={() => {
+							if (item.label === "Available") setShowWithdrawal(true);
+							if (item.label === "Earned") setShowEarnings(true);
+						}}
 						key={index}
 						className="flex flex-1 items-center justify-between p-4 rounded-lg border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors"
 					>
@@ -394,13 +418,22 @@ const MyListings = () => {
 										</button>
 
 										{listing.status === "active" ? (
-											<button
-												onClick={() => toggleStatus(listing.id)}
-												className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-purple-600 transition-colors"
-												title="Deactivate listing"
-											>
-												<EyeOff className="w-4 h-4" />
-											</button>
+											<>
+												<button
+													onClick={() => markAsSold(listing.id)}
+													className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-green-600 transition-colors"
+													title="Mark as sold"
+												>
+													<DollarSign className="w-4 h-4" />
+												</button>
+												<button
+													onClick={() => toggleStatus(listing.id)}
+													className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-purple-600 transition-colors"
+													title="Deactivate listing"
+												>
+													<EyeOff className="w-4 h-4" />
+												</button>
+											</>
 										) : (
 											<button
 												onClick={() => toggleStatus(listing.id)}
@@ -427,6 +460,14 @@ const MyListings = () => {
 				<WithdrawalModal
 					onClose={() => setShowWithdrawal(null)}
 				></WithdrawalModal>
+			)}
+			{showEarnings && (
+				<EarningsModal
+					onClose={() => setShowEarnings(false)}
+					earnings={balance.earned}
+					currency={currency}
+					userListings={userListings}
+				></EarningsModal>
 			)}
 			<div className="bg-white border-t border-gray-200 p-4 text-center mt-28">
 				<p className="text-sm text-gray-500">

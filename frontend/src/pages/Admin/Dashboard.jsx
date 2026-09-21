@@ -154,7 +154,7 @@ import api from "../../configs/axios";
 
 const Dashboard = () => {
 	const { user } = useAuth();
-	const currency = import.meta.env.VITE_CURRENCY || "$";
+	const currency = import.meta.env.VITE_CURRENCY || "₹";
 
 	const [loading, setLoading] = useState(true);
 	const [dashboardData, setDashboardData] = useState({

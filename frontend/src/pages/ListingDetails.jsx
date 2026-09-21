@@ -368,6 +368,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getProfileLink, platformIcons } from "../assets/assets";
 import { useDispatch, useSelector } from "react-redux";
+import { QRCodeSVG } from "qrcode.react";
 import {
 	ArrowLeftIcon,
 	ArrowUpRightFromSquareIcon,
@@ -383,6 +384,12 @@ import {
 	MapPin,
 	MessageSquareMoreIcon,
 	ShoppingBagIcon,
+	CreditCard,
+	QrCode,
+	X,
+	Copy,
+	Check,
+	Info,
 } from "lucide-react";
 import { setChat } from "../app/features/chatSlice";
 import { useAuth } from "../context/AuthContext";
@@ -401,6 +408,8 @@ const ListingDetails = () => {
 	const { listings = [] } = useSelector((state) => state.listing || {});
 	const [current, setCurrent] = useState(0);
 	const images = listing?.images || [];
+	const [showPayment, setShowPayment] = useState(false);
+	const [copied, setCopied] = useState(false);
 
 	const prevSlide = () => {
 		setCurrent((prev) => (prev === 0 ? images.length - 1 : prev - 1));
@@ -731,6 +740,16 @@ const ListingDetails = () => {
 						</button>
 					)}
 
+					{user?.id !== listing.ownerId && (
+						<button
+							onClick={() => setShowPayment(true)}
+							className="w-full mt-2 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium flex items-center justify-center gap-2"
+						>
+							<CreditCard className="size-4" />
+							Payment
+						</button>
+					)}
+
 					{listing.isCredentialChanged && user?.id !== listing.ownerId && (
 						<button
 							onClick={purchaseAccount}
@@ -742,6 +761,82 @@ const ListingDetails = () => {
 					)}
 				</div>
 			</div>
+
+			{/* Payment Modal */}
+			{showPayment && (
+				<div className="z-[100] fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+					<div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+						{/* Header */}
+						<div className="bg-gradient-to-r from-green-600 to-green-400 text-white p-4 rounded-t-xl flex items-center justify-between shrink-0">
+							<div>
+								<h3 className="font-semibold text-lg">Payment Details</h3>
+								<p className="text-sm text-green-100">Scan QR or copy UPI ID to pay</p>
+							</div>
+							<button onClick={() => setShowPayment(false)} className="p-1 hover:bg-white/20 rounded-full transition-colors">
+								<X className="w-5 h-5" />
+							</button>
+						</div>
+
+						{/* Content */}
+						<div className="p-6 space-y-4">
+							{/* Amount */}
+							<div className="bg-green-50 border border-green-100 rounded-lg p-4">
+								<div className="flex items-center justify-between mb-2">
+									<span className="text-sm font-medium text-gray-600">Amount to Pay</span>
+									<QrCode className="w-5 h-5 text-green-600" />
+								</div>
+								<div className="text-3xl font-bold text-green-700">{currency}{listing.price?.toLocaleString()}</div>
+							</div>
+
+							{/* UPI ID */}
+							<div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+								<div className="flex items-center justify-between mb-2">
+									<span className="text-sm font-medium text-gray-600">UPI ID</span>
+								</div>
+								<div className="flex items-center gap-2">
+									<div className="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2 font-mono text-lg font-medium text-gray-800 break-all">
+										7984491528@UPI
+									</div>
+									<button
+										onClick={() => {
+											navigator.clipboard.writeText("7984491528@UPI");
+											setCopied(true);
+											setTimeout(() => setCopied(false), 2000);
+										}}
+										className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-1"
+										title="Copy UPI ID"
+									>
+										{copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+										{copied ? "Copied" : "Copy"}
+									</button>
+								</div>
+								<p className="text-xs text-gray-500 mt-2">Open any UPI app (GPay, PhonePe, Paytm) and paste this ID</p>
+							</div>
+
+							{/* QR Code - UPI Format */}
+							<div className="text-center">
+								<div className="bg-white border border-gray-200 rounded-lg w-56 h-56 mx-auto mb-3 p-4 flex items-center justify-center">
+									<QRCodeSVG
+										value={`upi://pay?pa=7984491528@UPI&pn=Flipearn Seller&am=${listing.price}&cu=INR`}
+										size={128}
+										level="M"
+										includeMargin={true}
+									/>
+								</div>
+								<p className="text-sm text-gray-500">Scan with any UPI app (GPay, PhonePe, Paytm)</p>
+								<p className="text-xs text-gray-400 mt-1">Amount: {currency}{listing.price?.toLocaleString()}</p>
+							</div>
+
+							{/* Note */}
+							<div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+								<p className="text-sm text-amber-800 flex items-center gap-1">
+									<Info className="w-4 h-4" /> After payment, contact seller via Chat to share transaction screenshot for verification.
+								</p>
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
 
 			{/* Footer */}
 			<div className="bg-white border-t border-gray-200 p-4 text-center mt-28">
