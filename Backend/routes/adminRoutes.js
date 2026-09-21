@@ -13,6 +13,7 @@ import {
 	isAdmin,
 	markCredentialVerified,
 	markWithdrawalAsPaid,
+	rejectWithdrawal,
 } from "../controllers/adminController.js";
 
 const adminRouter = express.Router();
@@ -37,5 +38,6 @@ adminRouter.put(
 adminRouter.get("/transactions", protectAdmin, getAllTransactions);
 adminRouter.get("/withdraw-requests", protectAdmin, getAllWithdrawRequests);
 adminRouter.put("/withdrawal-mark/:id", protectAdmin, markWithdrawalAsPaid);
+adminRouter.put("/withdrawal-reject/:id", protectAdmin, rejectWithdrawal);
 
 export default adminRouter;

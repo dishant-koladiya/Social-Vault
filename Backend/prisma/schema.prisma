@@ -16,6 +16,7 @@ model User {
     earned    Float    @default(0)
     withdrawn Float    @default(0)
     plan      PlanType @default(FREE)
+    role      UserRole @default(USER)
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
@@ -25,6 +26,11 @@ model User {
     chatUserChats Chat[]       @relation("ChatUserChats")
     withdrawals   Withdrawal[]
     plans         Plan[]
+}
+
+enum UserRole {
+    USER
+    ADMIN
 }
 
 enum PlanType {
@@ -179,6 +185,7 @@ model Withdrawal {
     amount      Float
     account     Json[]
     isWithdrawn Boolean  @default(false)
+    isRejected  Boolean  @default(false)
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
 

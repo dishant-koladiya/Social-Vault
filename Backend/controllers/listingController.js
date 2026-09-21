@@ -453,33 +453,83 @@
 // };
 import imageKit from "../configs/imageKit.js";
 import fs from "fs";
+import validator from "validator";
 import prisma from "../configs/prisma.js";
+
+const TITLE_MAX_LENGTH = 200;
+const DESCRIPTION_MAX_LENGTH = 2000;
+const USERNAME_MAX_LENGTH = 100;
+
+const sanitizeString = (str, maxLength) => {
+	if (typeof str !== "string") return str;
+	return validator.trim(validator.escape(str)).slice(0, maxLength);
+};
+
+const VALID_PLATFORMS = ["youtube", "instagram", "tiktok", "facebook", "twitter", "linkedin", "pinterest", "snapchat", "twitch", "discord"];
+const VALID_NICHES = ["lifestyle", "fitness", "food", "travel", "tech", "gaming", "fashion", "beauty", "business", "education", "entertainment", "music", "art", "sports", "health", "finance", "other"];
 
 export const addListing = async (req, res) => {
 	try {
 		const userId = req.user.id;
-		const accountDetails = JSON.parse(req.body.accountDetails);
 
-		accountDetails.followers_count = parseInt(accountDetails.followers_count);
+		if (!req.body.accountDetails) {
+			return res.status(400).json({ message: "Account details are required" });
+		}
 
-		// FIX: Use parseFloat instead of parseInt for engagement_rate.
-		// Engagement rates are decimals (e.g. 3.7%). parseInt truncates to 3.
-		accountDetails.engagement_rate = parseFloat(accountDetails.engagement_rate);
+		let accountDetails;
+		try {
+			accountDetails = JSON.parse(req.body.accountDetails);
+		} catch {
+			return res.status(400).json({ message: "Invalid account details format" });
+		}
 
-		accountDetails.monthly_views = parseInt(accountDetails.monthly_views);
-		accountDetails.price = parseInt(accountDetails.price);
+		if (!accountDetails.title || typeof accountDetails.title !== "string" || accountDetails.title.trim().length < 1) {
+			return res.status(400).json({ message: "Title is required" });
+		}
+		accountDetails.title = sanitizeString(accountDetails.title, TITLE_MAX_LENGTH);
+
+		if (!accountDetails.platform || !VALID_PLATFORMS.includes(accountDetails.platform.toLowerCase())) {
+			return res.status(400).json({ message: "Valid platform is required" });
+		}
 		accountDetails.platform = accountDetails.platform.toLowerCase();
+
+		if (!accountDetails.niche || !VALID_NICHES.includes(accountDetails.niche.toLowerCase())) {
+			return res.status(400).json({ message: "Valid niche is required" });
+		}
 		accountDetails.niche = accountDetails.niche.toLowerCase();
 
-		// FIX: If username does NOT start with "@", keep the original value.
-		// Original code returned null for usernames without "@" prefix,
-		// silently wiping the username from the listing.
-		accountDetails.username = accountDetails.username.startsWith("@")
-			? accountDetails.username.slice(1)
-			: accountDetails.username;
+		accountDetails.followers_count = parseInt(accountDetails.followers_count);
+		if (isNaN(accountDetails.followers_count) || accountDetails.followers_count < 0) {
+			return res.status(400).json({ message: "Followers count must be a non-negative number" });
+		}
+
+		accountDetails.engagement_rate = parseFloat(accountDetails.engagement_rate);
+		if (isNaN(accountDetails.engagement_rate) || accountDetails.engagement_rate < 0) {
+			return res.status(400).json({ message: "Engagement rate must be a non-negative number" });
+		}
+
+		accountDetails.monthly_views = parseInt(accountDetails.monthly_views);
+		if (isNaN(accountDetails.monthly_views) || accountDetails.monthly_views < 0) {
+			return res.status(400).json({ message: "Monthly views must be a non-negative number" });
+		}
+
+		accountDetails.price = parseInt(accountDetails.price);
+		if (isNaN(accountDetails.price) || accountDetails.price <= 0) {
+			return res.status(400).json({ message: "Price must be a positive number" });
+		}
+
+		if (accountDetails.description) {
+			accountDetails.description = sanitizeString(accountDetails.description, DESCRIPTION_MAX_LENGTH);
+		}
+
+		if (accountDetails.username) {
+			accountDetails.username = accountDetails.username.startsWith("@")
+				? sanitizeString(accountDetails.username.slice(1), USERNAME_MAX_LENGTH)
+				: sanitizeString(accountDetails.username, USERNAME_MAX_LENGTH);
+		}
 
 		const uploadImages = req.files.map(async (file) => {
-			const response = await imageKit.upload({
+			const response = await imageKit.files.upload({
 				file: fs.createReadStream(file.path),
 				fileName: `${Date.now()}.png`,
 				folder: "filp-earn",
@@ -510,8 +560,7 @@ export const addListing = async (req, res) => {
 			.status(201)
 			.json({ message: "Account Listed successfully", listing });
 	} catch (error) {
-		console.log(error);
-		res.status(500).json({ message: error.code || error.message });
+		res.status(500).json({ message: "Failed to create listing" });
 	}
 };
 
@@ -546,8 +595,7 @@ export const getAllPublicListings = async (req, res) => {
 			},
 		});
 	} catch (error) {
-		console.log(error);
-		res.status(500).json({ message: error.code || error.message });
+		res.status(500).json({ message: "Failed to fetch listings" });
 	}
 };
 
@@ -598,8 +646,7 @@ export const getListingById = async (req, res) => {
 
 		return res.json({ listing });
 	} catch (error) {
-		console.log(error);
-		res.status(500).json({ message: error.code || error.message });
+		res.status(500).json({ message: "Failed to fetch listing" });
 	}
 };
 
@@ -608,25 +655,68 @@ export const updateListing = async (req, res) => {
 		const userId = req.user.id;
 		const { id } = req.params;
 
-		const accountDetails = JSON.parse(req.body.accountDetails);
-
-		if (req.files.length + (accountDetails.images?.length || 0) > 5) {
-			return res
-				.status(400)
-				.json({ message: "You can only upload up to 5 images" });
+		if (!req.body.accountDetails) {
+			return res.status(400).json({ message: "Account details are required" });
 		}
 
-		accountDetails.followers_count = parseInt(accountDetails.followers_count);
+		let accountDetails;
+		try {
+			accountDetails = JSON.parse(req.body.accountDetails);
+		} catch {
+			return res.status(400).json({ message: "Invalid account details format" });
+		}
 
-		// FIX: Use parseFloat for engagement_rate (same bug as addListing).
-		accountDetails.engagement_rate = parseFloat(accountDetails.engagement_rate);
+		if (req.files.length + (accountDetails.images?.length || 0) > 5) {
+			return res.status(400).json({ message: "You can only upload up to 5 images" });
+		}
 
-		accountDetails.monthly_views = parseInt(accountDetails.monthly_views);
-		accountDetails.price = parseInt(accountDetails.price);
-		accountDetails.platform = accountDetails.platform.toLowerCase();
-		accountDetails.niche = accountDetails.niche.toLowerCase();
+		if (accountDetails.title) {
+			accountDetails.title = sanitizeString(accountDetails.title, TITLE_MAX_LENGTH);
+		}
+		if (accountDetails.platform) {
+			if (!VALID_PLATFORMS.includes(accountDetails.platform.toLowerCase())) {
+				return res.status(400).json({ message: "Invalid platform" });
+			}
+			accountDetails.platform = accountDetails.platform.toLowerCase();
+		}
+		if (accountDetails.niche) {
+			if (!VALID_NICHES.includes(accountDetails.niche.toLowerCase())) {
+				return res.status(400).json({ message: "Invalid niche" });
+			}
+			accountDetails.niche = accountDetails.niche.toLowerCase();
+		}
+
+		if (accountDetails.followers_count !== undefined) {
+			accountDetails.followers_count = parseInt(accountDetails.followers_count);
+			if (isNaN(accountDetails.followers_count) || accountDetails.followers_count < 0) {
+				return res.status(400).json({ message: "Followers count must be a non-negative number" });
+			}
+		}
+		if (accountDetails.engagement_rate !== undefined) {
+			accountDetails.engagement_rate = parseFloat(accountDetails.engagement_rate);
+			if (isNaN(accountDetails.engagement_rate) || accountDetails.engagement_rate < 0) {
+				return res.status(400).json({ message: "Engagement rate must be a non-negative number" });
+			}
+		}
+		if (accountDetails.monthly_views !== undefined) {
+			accountDetails.monthly_views = parseInt(accountDetails.monthly_views);
+			if (isNaN(accountDetails.monthly_views) || accountDetails.monthly_views < 0) {
+				return res.status(400).json({ message: "Monthly views must be a non-negative number" });
+			}
+		}
+		if (accountDetails.price !== undefined) {
+			accountDetails.price = parseInt(accountDetails.price);
+			if (isNaN(accountDetails.price) || accountDetails.price <= 0) {
+				return res.status(400).json({ message: "Price must be a positive number" });
+			}
+		}
+
+		if (accountDetails.description) {
+			accountDetails.description = sanitizeString(accountDetails.description, DESCRIPTION_MAX_LENGTH);
+		}
+
 		accountDetails.username = accountDetails.username
-			? accountDetails.username.replace(/^@/, "")
+			? sanitizeString(accountDetails.username.replace(/^@/, ""), USERNAME_MAX_LENGTH)
 			: "";
 
 		const existingListing = await prisma.listing.findFirst({
@@ -646,7 +736,7 @@ export const updateListing = async (req, res) => {
 		let newImages = [];
 		if (req.files.length > 0) {
 			const uploadImages = req.files.map((file) =>
-				imageKit.upload({
+				imageKit.files.upload({
 					file: fs.createReadStream(file.path),
 					fileName: `${Date.now()}.png`,
 					folder: "filp-earn",
@@ -676,7 +766,7 @@ export const updateListing = async (req, res) => {
 		}
 
 		const updatedListing = await prisma.listing.update({
-			where: { id },
+			where: { id, ownerId: userId },
 			data: {
 				...accountDetails,
 				images: [...(accountDetails.images || []), ...newImages],
@@ -688,8 +778,7 @@ export const updateListing = async (req, res) => {
 			listing: updatedListing,
 		});
 	} catch (error) {
-		console.log("Update Listing Error:", error);
-		return res.status(500).json({ message: error.message });
+		return res.status(500).json({ message: "Failed to update listing" });
 	}
 };
 
@@ -697,6 +786,7 @@ export const toggleStatus = async (req, res) => {
 	try {
 		const { id } = req.params;
 		const userId = req.user.id;
+		const { status } = req.body; // Allow explicit status from frontend
 
 		const listing = await prisma.listing.findFirst({
 			where: { id, ownerId: userId },
@@ -711,17 +801,32 @@ export const toggleStatus = async (req, res) => {
 			return res.status(400).json({ message: "Your listing is sold" });
 		}
 
-		const newStatus = listing.status === "active" ? "inactive" : "active";
+		// If explicit status provided (e.g., "sold"), use it; otherwise toggle
+		const newStatus = status || (listing.status === "active" ? "inactive" : "active");
 
-		await prisma.listing.update({
-			where: { id },
-			data: { status: newStatus },
-		});
+		// If marking as sold, credit the seller's earned balance
+		if (newStatus === "sold" && listing.status !== "sold") {
+			await prisma.$transaction(async (tx) => {
+				await tx.listing.update({
+					where: { id },
+					data: { status: "sold" },
+				});
+
+				await tx.user.update({
+					where: { id: userId },
+					data: { earned: { increment: listing.price } },
+				});
+			});
+		} else {
+			await prisma.listing.update({
+				where: { id },
+				data: { status: newStatus },
+			});
+		}
 
 		return res.json({ message: "Listing status updated successfully" });
 	} catch (error) {
-		console.error(error);
-		res.status(500).json({ message: error.code || error.message });
+		res.status(500).json({ message: "Failed to update listing status" });
 	}
 };
 
@@ -750,8 +855,7 @@ export const deleteUserListing = async (req, res) => {
 
 		return res.json({ message: "Listing deleted successfully" });
 	} catch (error) {
-		console.log(error);
-		res.status(500).json({ message: error.code || error.message });
+		res.status(500).json({ message: "Failed to delete listing" });
 	}
 };
 
@@ -788,19 +892,22 @@ export const addCredential = async (req, res) => {
 
 		return res.json({ message: "Credential added successfully" });
 	} catch (error) {
-		console.log(error);
-		res.status(500).json({ message: error.code || error.message });
+		res.status(500).json({ message: "Failed to add credential" });
 	}
 };
 
 export const markFeatured = async (req, res) => {
 	try {
 		const { id } = req.params;
-
-		// FIX: Use req.auth() for consistency with every other controller.
-		// Original code used req.userId which comes from different middleware
-		// and may be undefined if that middleware isn't applied to this route.
 		const userId = req.user.id;
+
+		const listing = await prisma.listing.findFirst({
+			where: { id, ownerId: userId },
+		});
+
+		if (!listing) {
+			return res.status(404).json({ message: "Listing not found" });
+		}
 
 		await prisma.listing.updateMany({
 			where: { ownerId: userId },
@@ -814,8 +921,7 @@ export const markFeatured = async (req, res) => {
 
 		return res.json({ message: "Listing marked as featured successfully" });
 	} catch (error) {
-		console.log(error);
-		res.status(500).json({ message: error.code || error.message });
+		res.status(500).json({ message: "Failed to mark listing as featured" });
 	}
 };
 
@@ -849,8 +955,7 @@ export const getAllUserOrders = async (req, res) => {
 
 		return res.json({ orders: ordersWithCredentials });
 	} catch (error) {
-		console.log(error);
-		res.status(500).json({ message: error.code || error.message });
+		res.status(500).json({ message: "Failed to fetch orders" });
 	}
 };
 
@@ -902,15 +1007,12 @@ export const withdrawAmount = async (req, res) => {
 			withdrawal,
 		});
 	} catch (error) {
-		console.log(error);
-		// Surface the user-facing error messages (Insufficient balance, User not found)
-		// while keeping the generic fallback for unexpected DB errors.
 		const isClientError =
 			error.message === "Insufficient balance" ||
 			error.message === "User not found";
 		res
 			.status(isClientError ? 400 : 500)
-			.json({ message: error.message || error.code });
+			.json({ message: isClientError ? error.message : "Failed to process withdrawal" });
 	}
 };
 
@@ -944,23 +1046,47 @@ export const purchaseAccount = async (req, res) => {
 			},
 		});
 
-		// Demo mode: auto-confirm the transaction
-		await prisma.transaction.update({
-			where: { id: transaction.id },
-			data: { isPaid: true },
-		});
+		// Mark transaction as paid, update listing to sold, and credit seller earnings
+		// All in a single atomic DB transaction to prevent partial updates
+		await prisma.$transaction(async (tx) => {
+			await tx.transaction.update({
+				where: { id: transaction.id },
+				data: { isPaid: true },
+			});
 
-		await prisma.listing.update({
-			where: { id: listingId },
-			data: { status: "sold" },
+			await tx.listing.update({
+				where: { id: listingId },
+				data: { status: "sold" },
+			});
+
+			// FIX: Credit the listing owner's earned balance.
+			// This was the root cause of Earned/Available always showing $0.
+			await tx.user.update({
+				where: { id: listing.ownerId },
+				data: { earned: { increment: listing.price } },
+			});
 		});
 
 		return res.json({
-			message: "Purchase successful (demo mode)",
+			message: "Purchase successful",
 			transactionId: transaction.id,
 		});
 	} catch (error) {
-		console.log(error);
-		res.status(500).json({ message: error.code || error.message });
+		res.status(500).json({ message: "Failed to process purchase" });
+	}
+};
+
+export const getUserWithdrawals = async (req, res) => {
+	try {
+		const userId = req.user.id;
+
+		const withdrawals = await prisma.withdrawal.findMany({
+			where: { userId },
+			orderBy: { createdAt: "desc" },
+		});
+
+		return res.json({ withdrawals: withdrawals || [] });
+	} catch (error) {
+		res.status(500).json({ message: "Failed to fetch withdrawals" });
 	}
 };

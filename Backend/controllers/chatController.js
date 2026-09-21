@@ -13,12 +13,14 @@ const CHAT_LIST_INCLUDE = {
 	chatUser: { select: { id: true, name: true, email: true, image: true } },
 };
 
+const MAX_MESSAGE_LENGTH = 5000;
+
 export const getChat = async (req, res) => {
 	try {
 		const userId = req.user.id;
 		const { listingId, chatId } = req.body;
 
-		if (!listingId) {
+		if (!listingId || typeof listingId !== "string") {
 			return res.status(400).json({ message: "listingId is required" });
 		}
 
@@ -92,9 +94,8 @@ export const getChat = async (req, res) => {
 
 		return res.status(201).json({ chat: newChat });
 	} catch (error) {
-		console.error("getChat error:", error);
 		res.status(500).json({
-			message: error?.message || "Failed to fetch chat",
+			message: "Failed to fetch chat",
 		});
 	}
 };
@@ -115,7 +116,6 @@ export const getAllUserChats = async (req, res) => {
 
 		return res.json({ chats });
 	} catch (error) {
-		console.error("getAllUserChats error:", error);
 		res.status(500).json({ message: "Failed to fetch chats" });
 	}
 };
@@ -125,13 +125,17 @@ export const sendChatMessage = async (req, res) => {
 		const userId = req.user.id;
 		const { chatId, message } = req.body;
 
-		if (!chatId || !message?.trim()) {
+		if (!chatId || typeof chatId !== "string" || !message?.trim()) {
 			return res
 				.status(400)
 				.json({ message: "chatId and message are required" });
 		}
 
 		const trimmedMessage = message.trim();
+
+		if (trimmedMessage.length > MAX_MESSAGE_LENGTH) {
+			return res.status(400).json({ message: `Message must be ${MAX_MESSAGE_LENGTH} characters or less` });
+		}
 
 		const chat = await prisma.chat.findFirst({
 			where: {
@@ -176,7 +180,6 @@ export const sendChatMessage = async (req, res) => {
 
 		res.json({ message: "Message sent", newMessage });
 	} catch (error) {
-		console.error("sendChatMessage error:", error);
 		res.status(500).json({ message: "Failed to send message" });
 	}
 };

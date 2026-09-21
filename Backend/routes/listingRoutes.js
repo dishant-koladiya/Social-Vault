@@ -41,7 +41,8 @@ import {
 	getAllPublicListings,
 	getAllUserListing,
 	getAllUserOrders,
-	getListingById, // FIX: added missing import
+	getListingById,
+	getUserWithdrawals,
 	markFeatured,
 	purchaseAccount,
 	toggleStatus,
@@ -60,6 +61,7 @@ listingRouter.get("/user", protect, getAllUserListing);
 listingRouter.get("/user-orders", protect, getAllUserOrders);
 listingRouter.post("/add-credential", protect, addCredential);
 listingRouter.post("/withdraw", protect, withdrawAmount);
+listingRouter.get("/my-withdrawals", protect, getUserWithdrawals);
 listingRouter.get("/purchase-account/:listingId", protect, purchaseAccount);
 
 // FIX: Registered the missing getListingById route.

@@ -1,9 +1,29 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import validator from "validator";
 import prisma from "../configs/prisma.js";
 import sendEmail from "../configs/nodemailer.js";
 import { otpEmailTemplate } from "../utils/emailTemplate.js";
+
+const PASSWORD_MIN_LENGTH = 8;
+const NAME_MAX_LENGTH = 100;
+
+const validatePasswordStrength = (password) => {
+  if (password.length < PASSWORD_MIN_LENGTH) {
+    return `Password must be at least ${PASSWORD_MIN_LENGTH} characters`;
+  }
+  if (!/[a-z]/.test(password)) {
+    return "Password must contain at least one lowercase letter";
+  }
+  if (!/[A-Z]/.test(password)) {
+    return "Password must contain at least one uppercase letter";
+  }
+  if (!/[0-9]/.test(password)) {
+    return "Password must contain at least one number";
+  }
+  return null;
+};
 
 const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
@@ -17,21 +37,37 @@ export const register = async (req, res) => {
       return res.status(400).json({ message: "Email, password, and name are required" });
     }
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (!validator.isEmail(email)) {
+      return res.status(400).json({ message: "Please provide a valid email address" });
+    }
+
+    if (typeof name !== "string" || name.trim().length < 1) {
+      return res.status(400).json({ message: "Name is required" });
+    }
+    if (name.length > NAME_MAX_LENGTH) {
+      return res.status(400).json({ message: `Name must be ${NAME_MAX_LENGTH} characters or less` });
+    }
+
+    const passwordError = validatePasswordStrength(password);
+    if (passwordError) {
+      return res.status(400).json({ message: passwordError });
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (existingUser) {
       return res.status(400).json({ message: "Email already registered" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     const user = await prisma.user.create({
       data: {
-        email,
-        name,
+        email: email.toLowerCase(),
+        name: name.trim(),
         password: hashedPassword,
-        image: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
+        image: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`,
       },
-      select: { id: true, email: true, name: true, image: true, createdAt: true },
+      select: { id: true, email: true, name: true, image: true, createdAt: true, role: true },
     });
 
     const token = generateToken(user.id);
@@ -45,8 +81,7 @@ export const register = async (req, res) => {
 
     res.status(201).json({ message: "Registered successfully", user });
   } catch (error) {
-    console.log("Register error:", error);
-    res.status(500).json({ message: error.message || "Registration failed" });
+    res.status(500).json({ message: "Registration failed" });
   }
 };
 
@@ -58,7 +93,11 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    if (!validator.isEmail(email)) {
+      return res.status(400).json({ message: "Please provide a valid email address" });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
@@ -80,8 +119,7 @@ export const login = async (req, res) => {
     const { password: _, ...userWithoutPassword } = user;
     res.json({ message: "Logged in successfully", user: userWithoutPassword });
   } catch (error) {
-    console.log("Login error:", error);
-    res.status(500).json({ message: error.message || "Login failed" });
+    res.status(500).json({ message: "Login failed" });
   }
 };
 
@@ -89,7 +127,7 @@ export const me = async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { id: true, email: true, name: true, image: true, createdAt: true, earned: true, withdrawn: true },
+      select: { id: true, email: true, name: true, image: true, createdAt: true, earned: true, withdrawn: true, role: true },
     });
 
     if (!user) {
@@ -98,8 +136,7 @@ export const me = async (req, res) => {
 
     res.json({ user });
   } catch (error) {
-    console.log("Me error:", error);
-    res.status(500).json({ message: error.message || "Failed to get user" });
+    res.status(500).json({ message: "Failed to get user" });
   }
 };
 
@@ -112,7 +149,6 @@ export const logout = async (req, res) => {
     });
     res.json({ message: "Logged out successfully" });
   } catch (error) {
-    console.log("Logout error:", error);
     res.status(500).json({ message: "Logout failed" });
   }
 };
@@ -121,15 +157,12 @@ export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    if (!email) {
-      return res.status(400).json({ message: "Email is required" });
+    if (!email || !validator.isEmail(email)) {
+      return res.status(400).json({ message: "A valid email is required" });
     }
 
-    console.log(`Forgot password request for: ${email}`);
-
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (!user) {
-      console.log(`No user found for email: ${email}`);
       return res.status(200).json({ message: "If an account exists with this email, you will receive a verification code." });
     }
 
@@ -137,28 +170,26 @@ export const forgotPassword = async (req, res) => {
     const hashedOtp = await bcrypt.hash(otp, 10);
 
     await prisma.passwordReset.updateMany({
-      where: { email, used: false },
+      where: { email: email.toLowerCase(), used: false },
       data: { used: true },
     });
 
     await prisma.passwordReset.create({
       data: {
-        email,
+        email: email.toLowerCase(),
         otp: hashedOtp,
         expiresAt: new Date(Date.now() + 10 * 60 * 1000),
       },
     });
 
-    const info = await sendEmail({
-      to: email,
+    await sendEmail({
+      to: email.toLowerCase(),
       subject: "Your Password Reset Code",
       html: otpEmailTemplate(otp, email),
     });
 
-    console.log(`OTP email sent to: ${email}, messageId: ${info.messageId}`);
     res.status(200).json({ message: "If an account exists with this email, you will receive a verification code." });
   } catch (error) {
-    console.log("Forgot password error:", error);
     res.status(500).json({ message: "Failed to process request" });
   }
 };
@@ -171,9 +202,13 @@ export const verifyOtp = async (req, res) => {
       return res.status(400).json({ message: "Email and OTP are required" });
     }
 
+    if (!validator.isEmail(email)) {
+      return res.status(400).json({ message: "Please provide a valid email address" });
+    }
+
     const resetRecord = await prisma.passwordReset.findFirst({
       where: {
-        email,
+        email: email.toLowerCase(),
         used: false,
         expiresAt: { gt: new Date() },
       },
@@ -195,14 +230,13 @@ export const verifyOtp = async (req, res) => {
     });
 
     const resetToken = jwt.sign(
-      { email, purpose: "password-reset" },
-      process.env.JWT_SECRET,
+      { email: email.toLowerCase(), purpose: "password-reset" },
+      process.env.JWT_RESET_SECRET,
       { expiresIn: "15m" }
     );
 
     res.status(200).json({ message: "Verification successful", resetToken });
   } catch (error) {
-    console.log("Verify OTP error:", error);
     res.status(500).json({ message: "Failed to verify code" });
   }
 };
@@ -215,15 +249,24 @@ export const updateProfile = async (req, res) => {
     const updateData = {};
 
     if (name !== undefined) {
-      updateData.name = name;
+      if (typeof name !== "string" || name.trim().length < 1) {
+        return res.status(400).json({ message: "Name cannot be empty" });
+      }
+      if (name.length > NAME_MAX_LENGTH) {
+        return res.status(400).json({ message: `Name must be ${NAME_MAX_LENGTH} characters or less` });
+      }
+      updateData.name = name.trim();
     }
 
     if (email !== undefined && email !== req.user.email) {
+      if (!validator.isEmail(email)) {
+        return res.status(400).json({ message: "Please provide a valid email address" });
+      }
       if (!currentPassword) {
         return res.status(400).json({ message: "Current password is required to change email" });
       }
 
-      const existingUser = await prisma.user.findUnique({ where: { email } });
+      const existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
       if (existingUser && existingUser.id !== userId) {
         return res.status(400).json({ message: "Email is already in use" });
       }
@@ -234,7 +277,7 @@ export const updateProfile = async (req, res) => {
         return res.status(400).json({ message: "Current password is incorrect" });
       }
 
-      updateData.email = email;
+      updateData.email = email.toLowerCase();
     }
 
     if (Object.keys(updateData).length === 0) {
@@ -244,13 +287,12 @@ export const updateProfile = async (req, res) => {
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: updateData,
-      select: { id: true, email: true, name: true, image: true, createdAt: true },
+      select: { id: true, email: true, name: true, image: true, createdAt: true, role: true },
     });
 
     res.json({ message: "Profile updated successfully", user: updatedUser });
   } catch (error) {
-    console.log("Update profile error:", error);
-    res.status(500).json({ message: error.message || "Failed to update profile" });
+    res.status(500).json({ message: "Failed to update profile" });
   }
 };
 
@@ -262,13 +304,14 @@ export const resetPassword = async (req, res) => {
       return res.status(400).json({ message: "Reset token and new password are required" });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    const passwordError = validatePasswordStrength(newPassword);
+    if (passwordError) {
+      return res.status(400).json({ message: passwordError });
     }
 
     let decoded;
     try {
-      decoded = jwt.verify(resetToken, process.env.JWT_SECRET);
+      decoded = jwt.verify(resetToken, process.env.JWT_RESET_SECRET);
     } catch {
       return res.status(400).json({ message: "Invalid or expired reset token" });
     }
@@ -282,7 +325,7 @@ export const resetPassword = async (req, res) => {
       return res.status(400).json({ message: "User not found" });
     }
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
 
     await prisma.user.update({
       where: { email: decoded.email },
@@ -291,7 +334,6 @@ export const resetPassword = async (req, res) => {
 
     res.status(200).json({ message: "Password reset successful" });
   } catch (error) {
-    console.log("Reset password error:", error);
     res.status(500).json({ message: "Failed to reset password" });
   }
 };

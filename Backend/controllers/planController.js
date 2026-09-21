@@ -3,8 +3,8 @@ import razorpay from "../configs/razorpay.js";
 import prisma from "../configs/prisma.js";
 
 const PLAN_AMOUNTS = {
-	BASIC: 29900,
-	PREMIUM: 99900,
+	BASIC: 99900,
+	PREMIUM: 499900,
 };
 
 const PLAN_DURATIONS = {
